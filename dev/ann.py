@@ -14,7 +14,7 @@ import random
 class NeuralNet:
 
 	# Initialization
-	def __init__ (self, data = None, targets = None, epochs = 10, etaDataLayer = 0.2, etaHiddenLayer = 0.02, hiddenLayers = 1, hiddenNeurons = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, predictClasses = True, backPropagate = False, verbose = False):
+	def __init__ (self, data = None, targets = None, epochs = 10, etaDataLayer = 0.2, etaHiddenLayer = 0.02, hiddenLayers = 1, hiddenNeurons = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, regression = True, backPropagate = False, verbose = False):
 		"""
 		Initializes Neural Network With User Provided Parameters
 
@@ -32,7 +32,7 @@ class NeuralNet:
 		self.hiddenNeurons 		= hiddenNeurons
 		self.dataWeightsLimit 	= dataWeightsLimit
 		self.hiddenWeightsLimit	= hiddenWeightsLimit
-		self.predictClasses 	= predictClasses
+		self.regression 		= regression
 		self.backPropagate 		= backPropagate
 		self.verbose 			= verbose
 		if self.data["input"] != None:
@@ -46,7 +46,7 @@ class NeuralNet:
 				hiddenNeurons 		= self.hiddenNeurons,
 				dataWeightsLimit  	= self.dataWeightsLimit,
 				hiddenWeightsLimit 	= self.hiddenWeightsLimit,
-				predictClasses 		= self.predictClasses,
+				regression 			= self.regression,
 				backPropagate 		= self.backPropagate,
 				verbose 			= self.verbose
 			)
@@ -57,7 +57,7 @@ class NeuralNet:
 
 
 	# Train Neural Network
-	def train (self, data, targets, epochs = 10, etaDataLayer = 0.2, etaHiddenLayer = 0.02, hiddenLayers = 1, hiddenNeurons = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, predictClasses = True, backPropagate = False, verbose = False):
+	def train (self, data, targets, epochs = 10, etaDataLayer = 0.2, etaHiddenLayer = 0.02, hiddenLayers = 1, hiddenNeurons = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, regression = True, backPropagate = False, verbose = False):
 		self.data["input"] 		= numpy.array(data)
 		self.data["rows"] 		= len(data)
 		self.data["cols"] 		= len(data[0])
@@ -70,51 +70,97 @@ class NeuralNet:
 		self.hiddenNeurons 		= hiddenNeurons
 		self.dataWeightsLimit 	= dataWeightsLimit
 		self.hiddenWeightsLimit	= hiddenWeightsLimit
-		self.predictClasses 	= predictClasses
+		self.regression 		= regression
 		self.backPropagate 		= backPropagate
 		self.verbose 			= verbose
 		self.report 			= {}
 		self.report["total"] 	= self.epochs * len(data)
 		self.dataWeights 		= self.dataWeightsLimit * numpy.random.random_sample((self.data["cols"], self.hiddenNeurons))
 		self.hiddenWeights 		= self.hiddenWeightsLimit * numpy.random.random_sample((self.hiddenNeurons + 1, 1))
-		if self.verbose == True:
-			print "------------------------------------"
-			print "--- Training . . . -----------------"
-			print "------------------------------------"
+		print "========================================"
+		print "--- Training . . . ---------------------"
+		print "========================================"
 		for epoch in range(self.epochs):
 			hits 				= 0
 			misses 				= 0
-			total 				= 0
+			processed 			= 0
 			distances 			= []
-			sampleIndices 		= sorted(range(len(self.data)), key = lambda k: random.random())
+			predictedClass 		= None
+			sampleIndices 		= sorted(range(len(self.data["input"])), key = lambda k: random.random())
+			if self.verbose == True:
+				print "----------------------------------------"
+				print "--- Epoch", epoch
+				print "----------------------------------------"
 			for sampleIndex in sampleIndices:
 				sample 			= self.data["input"][sampleIndex]
 				target 			= self.targets[sampleIndex]
 				if self.verbose == True:
-					print "    Feeding Forward"
+					print "--- Feeding Forward . . . --------------"
 					print "         Sample", sampleIndex + 1, "of Epoch", epoch + 1
-					print "         Known Class: ", target
 				# Forward Propagation
 				a 				= 1 / (1 + numpy.exp(- numpy.dot(sample, self.dataWeights)))
 				b 				= numpy.concatenate([[1], a])
-				output 			= 1 / (1 + numpy.exp(- numpy.dot(b, self.hiddenWeights)))
+				output 			= 1 / (1 + numpy.exp(- numpy.dot(b, self.hiddenWeights)))[0]
 				# Metric Computation & Communication
-				error 			= 0.5 * ((target - output) ** 2)
-				distance 		= abs(target - output)
-				if self.predictClasses == True:
-					predictedClass 	= round(self.classCount * output)
+				if self.regression == False:
+					error 			= 0.5 * (((target / (self.classCount - 1)) - output) ** 2)
+					distance 		= abs(target - (output * (self.classCount - 1)))
+					predictedClass 	= round(self.classCount * output) - 1
+					if predictedClass == target:
+						hits += 1
+					else:
+						misses += 1
+					if self.verbose == True:
+						print "         Annotated Class: \t", target
+						print "         Computed Class: \t", predictedClass
+						print "         Computed SSE: \t\t%0.4f" % error
+						print "         Raw Distance: \t\t%0.4f" % distance
+						if predictedClass == target:
+							print "         Prediction Status: \tHit! :)"
+						else:
+							print "         Prediction Status: \tOops! :("
+
+				else:
+					error 			= 0.5 * ((target - output) ** 2)
+					distance 		= abs(target - output)
+					if self.verbose == True:
+						print "         Annotated Value: \t", target
+						print "         Computed Value: \t%0.4f" % output
+						print "         Computed SSE: \t\t%0.4f" % error
+						print "         Raw Distance: \t\t%0.4f" % distance
+				processed += 1
 				distances.append(distance)
-				print output
+				# Back Propagation
+				if self.verbose == True:
+					print "--- Back Propagating . . . -------------"
+				deltaDataWeights 	= (target / (self.classCount - 1) - output) * output * (1 - output)
+				deltaHiddenWeights 	= numpy.delete((b * (1 - b) * self.hiddenWeights * deltaDataWeights)[0], 0)
+				updateHiddenWeights = etaHiddenLayer * b * deltaDataWeights
+				updatedHiddenLayer 	= b + updateHiddenWeights
+				self.hiddenWeights 	= numpy.transpose(numpy.atleast_2d(updatedHiddenLayer))
+				updateDataWeights 	= etaDataLayer * numpy.outer(sample, deltaHiddenWeights)
+				updatedDataLayer 	= self.dataWeights + updateDataWeights
+				self.dataWeights 	= updateDataWeights
+				if self.verbose == True:
+					print "--- Sample Processed -------------------\n"
+
+				# updateDataWeights 	= etaDataLayer * numpy.array(sample) * deltaHiddenWeights
+
 				# # Multiple Hidden Layer Routine
 				# for hiddenLayer in range(hiddenLayers):
-
-
-
-			# print randomizedSample
-		if self.verbose == True:
-			print "------------------------------------"
-			print "--- Training Complete --------------"
-			print "------------------------------------"
+			if self.verbose == True:
+				print "----------------------------------------"
+				print "--- Epoch", epoch, "Complete"
+				print "----------------------------------------"
+				if self.regression == False:
+					accuracy 		= (hits/processed) * 100
+					print " 	Epoch Hits / Total:\t", hits, "/", processed
+					print " 	Epoch Hit Percent:\t%0.2f" % (float(hits) / processed * 100), "\n"
+				else:
+					print "\n"
+		print "========================================"
+		print "--- Training Complete ------------------"
+		print "========================================"
 
 if __name__ == "__main__":
 	data 		= [
@@ -165,6 +211,8 @@ if __name__ == "__main__":
 	]
 	classes 	= [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 	ann 		= NeuralNet()
-	ann.train(data, classes, verbose = True)
+	ann.train(data, classes, epochs = 10, verbose = False, regression = False)
 	# ann.init(data, classes)
 	# ann.train(data, classes)
+else:
+	pass
