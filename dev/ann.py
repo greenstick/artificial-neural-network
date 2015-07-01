@@ -16,9 +16,21 @@ class NeuralNet:
 	# Initialization
 	def __init__ (self, data = None, targets = None, epochs = 10, etaDataLayer = 0.2, etaHiddenLayer = 0.02, hiddenLayers = 1, hiddenNeurons = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, regression = True, backPropagate = False, verbose = False):
 		"""
-		Initializes Neural Network With User Provided Parameters
+		Initializes Neural Network With User Provided Parameters – If Data is Provided, Automatically Initializes Training
 
-		@param data 	: 
+		@params: type - description
+			data 				: 2x2 numpy arrays or python lists 	- Samples by Features
+			targets 			: Numpy array or python list 		- Target classes or values for supervised learning
+			epochs 				: Integer 							- Number of training epochs
+			etaDataLayer 		: Float 							- Learning rate for first weights layer
+			etaHiddenLayer 		: Float 							- Learning rate for hidden layer(s)
+			hiddenLayers 		: Integer 							- Number of hidden layers
+			hiddenNeurons 		: Integer 							- Number of neurons per hidden layer
+			dataWeightsLimit 	: Float 							- First layer weights initialization limit around 0 (the range is effectively double the input value)
+			hiddenWeightsLimit 	: Float 							- Hidden layer weights initialization limit around 0 (the range is effectively double the input value)
+			regression 			: Boolean 							- If False, run classification mode
+			backPropagate 		: Boolean 							- Whether to use backpropagation algorithm
+			verbose 			: Boolean 							- Verbose output of training progress
 		"""
 		self.data 				= {}
 		self.data["input"] 		= data
@@ -35,6 +47,9 @@ class NeuralNet:
 		self.regression 		= regression
 		self.backPropagate 		= backPropagate
 		self.verbose 			= verbose
+		self.report 			= {}
+		self.dataWeights 		= None
+		self.hiddenWeights 		= None
 		if self.data["input"] != None:
 			self.train(
 				data 				= self.data["input"], 
@@ -57,19 +72,36 @@ class NeuralNet:
 
 
 	# Train Neural Network
-	def train (self, data, targets, epochs = 10, etaDataLayer = 0.2, etaHiddenLayer = 0.02, hiddenLayers = 1, hiddenNeurons = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, regression = True, backPropagate = False, verbose = False):
+	def train (self, data, targets, epochs = 100, etaDataLayer = 0.2, etaHiddenLayer = 0.2, hiddenLayers = 1, hiddenNeurons = 200, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, regression = True, backPropagate = False, verbose = False):
+		"""
+		Train Neural Network With User Provided Parameters
+
+		@params: type - description
+			data 				: 2x2 numpy arrays or python lists 	- Samples by Features
+			targets 			: Numpy array or python list 		- Target classes or values for supervised learning
+			epochs 				: Integer 							- Number of training epochs
+			etaDataLayer 		: Float 							- Learning rate for first weights layer
+			etaHiddenLayer 		: Float 		3					- Learning rate for hidden layer(s)
+			hiddenLayers 		: Integer 							- Number of hidden layers
+			hiddenNeurons 		: Integer 							- Number of neurons per hidden layer
+			dataWeightsLimit 	: Float 							- First layer weights initialization limit around 0 (the range is effectively double the input value)
+			hiddenWeightsLimit 	: Float 							- Hidden layer weights initialization limit around 0 (the range is effectively double the input value)
+			regression 			: Boolean 							- If False, run classification mode
+			backPropagate 		: Boolean 							- Whether to use backpropagation algorithm
+			verbose 			: Boolean 							- Verbose output of training progress
+		"""
 		self.data["input"] 		= numpy.array(data)
 		self.data["rows"] 		= len(data)
 		self.data["cols"] 		= len(data[0])
 		self.targets 			= targets
 		self.classCount 		= len(set(targets))
 		self.epochs 			= epochs
-		self.etaDataLayer 		= etaDataLayer
-		self.etaHiddenLayer 	= etaHiddenLayer
+		self.etaDataLayer 		= float(etaDataLayer)
+		self.etaHiddenLayer 	= float(etaHiddenLayer)
 		self.hiddenLayers 		= hiddenLayers
 		self.hiddenNeurons 		= hiddenNeurons
-		self.dataWeightsLimit 	= dataWeightsLimit
-		self.hiddenWeightsLimit	= hiddenWeightsLimit
+		self.dataWeightsLimit 	= float(dataWeightsLimit)
+		self.hiddenWeightsLimit	= float(hiddenWeightsLimit)
 		self.regression 		= regression
 		self.backPropagate 		= backPropagate
 		self.verbose 			= verbose
@@ -92,15 +124,16 @@ class NeuralNet:
 				print "--- Epoch", epoch
 				print "----------------------------------------"
 			for sampleIndex in sampleIndices:
+				print self.dataWeights
 				sample 			= self.data["input"][sampleIndex]
 				target 			= self.targets[sampleIndex]
 				if self.verbose == True:
 					print "--- Feeding Forward . . . --------------"
 					print "         Sample", sampleIndex + 1, "of Epoch", epoch + 1
 				# Forward Propagation
-				a 				= 1 / (1 + numpy.exp(- numpy.dot(sample, self.dataWeights)))
+				a 				= 1.0 / (1.0 + numpy.exp(- numpy.dot(sample, self.dataWeights)))
 				b 				= numpy.concatenate([[1], a])
-				output 			= 1 / (1 + numpy.exp(- numpy.dot(b, self.hiddenWeights)))[0]
+				output 			= 1.0 / (1.0 + numpy.exp(- numpy.dot(b, self.hiddenWeights)))[0]
 				# Metric Computation & Communication
 				if self.regression == False:
 					error 			= 0.5 * (((target / (self.classCount - 1)) - output) ** 2)
@@ -133,14 +166,14 @@ class NeuralNet:
 				# Back Propagation
 				if self.verbose == True:
 					print "--- Back Propagating . . . -------------"
-				deltaDataWeights 	= (target / (self.classCount - 1) - output) * output * (1 - output)
-				deltaHiddenWeights 	= numpy.delete((b * (1 - b) * self.hiddenWeights * deltaDataWeights)[0], 0)
+				deltaDataWeights 	= ((target  / self.classCount - 1) - output) * output * (1 - output)
+				deltaHiddenWeights 	= numpy.delete((b * (1 - b) * self.hiddenWeights * deltaDataWeights)[0], 0.0)
 				updateHiddenWeights = etaHiddenLayer * b * deltaDataWeights
 				updatedHiddenLayer 	= b + updateHiddenWeights
 				self.hiddenWeights 	= numpy.transpose(numpy.atleast_2d(updatedHiddenLayer))
 				updateDataWeights 	= etaDataLayer * numpy.outer(sample, deltaHiddenWeights)
-				updatedDataLayer 	= self.dataWeights + updateDataWeights
-				self.dataWeights 	= updateDataWeights
+				self.dataWeights  	= self.dataWeights + updateDataWeights
+				print self.dataWeights
 				if self.verbose == True:
 					print "--- Sample Processed -------------------\n"
 
@@ -211,7 +244,7 @@ if __name__ == "__main__":
 	]
 	classes 	= [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 	ann 		= NeuralNet()
-	ann.train(data, classes, epochs = 10, verbose = False, regression = False)
+	ann.train(data, classes, epochs = 2, verbose = True, regression = False)
 	# ann.init(data, classes)
 	# ann.train(data, classes)
 else:
