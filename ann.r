@@ -44,7 +44,11 @@ generateVector      <- function (n, value = FALSE, lower = -0.5, upper = 0.5) {
     v
 }
 
-# Formatting: How Many Decimals?
+# 
+# Print Formatting Functions
+# 
+
+# How Many Decimals?
 decimals            <- function (x, d) {
     y <- format(round(x, d), nsmall = d)
     y
@@ -83,7 +87,7 @@ relu                <- function (x) {
 # Artifical Neural Network Training Function
 # 
 
-ANN.train           <- function (epochs = 2, inputTrainingData, trainingTargets, kernel = "sigmoid", etaP = 0.1, etaH = 0.01, hiddenNodes = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, plotData = list(), visualizeWeights = FALSE, classification = TRUE, verboseTrain = TRUE) {
+ANN.train               <- function (epochs = 2, inputTrainingData, trainingTargets, kernel = "sigmoid", etaP = 0.1, etaH = 0.01, hiddenNodes = 20, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, plotData = list(), visualizeWeights = FALSE, classification = TRUE, verboseTrain = TRUE) {
     # Configuration 
     kernelFunction          <- match.fun(kernel)  
     inputTrainingDataDim    <- dim(inputTrainingData)
@@ -225,10 +229,10 @@ ANN.train           <- function (epochs = 2, inputTrainingData, trainingTargets,
 }
 
 # 
-# Artifical Neural Network Classification Function
+# Artifical Neural Network Validation Function
 # 
 
-ANN.classify            <- function (inputValidData, validTargets = vector(), calibratedWeights = computedWeights$trainedWeights, calibratedHidden = computedWeights$trainedHidden, kernel = kernel, verboseClassify = TRUE) {
+ANN.validate        <- function (inputValidData, validTargets = vector(), calibratedWeights = computedWeights$trainedWeights, calibratedHidden = computedWeights$trainedHidden, kernel = kernel, verboseValidate = TRUE) {
     # Configure
     kernelFunction      <- match.fun(kernel) 
     inputValidDataDim   <- dim(inputValidData)
@@ -240,11 +244,11 @@ ANN.classify            <- function (inputValidData, validTargets = vector(), ca
     validMiss           <- 0
     validGrand          <- 0
     print("=========================================")
-    print("-- Classifying Data ---------------------")
+    print("-- Validating Model ---------------------")
     print("=========================================")
     for (i in 1:inputValidLengthC) {
         validGrand           <- validGrand + 1
-        if (verboseClassify == TRUE) {
+        if (verboseValidate == TRUE) {
             print("-- New Sample ---------------------------")
             print("   Forward-Propagating...")
             print(paste("       Valid Sample", i))
@@ -256,7 +260,7 @@ ANN.classify            <- function (inputValidData, validTargets = vector(), ca
         validOutput         <- kernelFunction(validHiddenLayer %*% calibratedHidden)
         classes             <- c(classes, validOutput)
         # Metric Computation & Communication      
-        if (verboseClassify == TRUE) {
+        if (verboseValidate == TRUE) {
             print(paste("       Computed Value:        ", decimals(validOutput, 8)))
             print(paste("       Computed Class:        ", round(validOutput)))
         }
@@ -265,19 +269,19 @@ ANN.classify            <- function (inputValidData, validTargets = vector(), ca
             validError          <- 0.5 * (validTargets[i] - validOutput) ^ 2
             validDistance       <- abs(validTargets[i] - validOutput) # An Easily Interpretable Error Measure
             validDistanceList   <- c(validDistanceList, validDistance) # For Monitoring Error Reduction  
-            if (verboseClassify == TRUE) {
+            if (verboseValidate == TRUE) {
                 print(paste("       Known Class:           ", validTargets[i]))
                 print(paste("       Raw Distance:          ", decimals(validDistance, 8)))
                 print(paste("       Computed SSE:          ", decimals(validError, 8)))
             }
             if (abs(validRounded - validTargets[i]) == 0) {
                 validHit    <- validHit + 1
-                if (verboseClassify == TRUE) print("       Rounded Hit Status:     Hit! :)")
+                if (verboseValidate == TRUE) print("       Rounded Hit Status:     Hit! :)")
             } else {
                 validMiss   <- validMiss + 1
-                if (verboseClassify == TRUE) print("       Rounded Hit Status:     Miss :(")
+                if (verboseValidate == TRUE) print("       Rounded Hit Status:     Miss :(")
             }
-            if (verboseClassify == TRUE) {
+            if (verboseValidate == TRUE) {
                 print(paste("           Valid Hits / Total: ", validHit, "/", validGrand))
                 print(paste("           Valid Hit Percent:  ", decimals((validHit/validGrand) * 100, 2)))
                 print("-- Sample Done --------------------------")
@@ -285,7 +289,7 @@ ANN.classify            <- function (inputValidData, validTargets = vector(), ca
         }
     }
     print("=========================================")
-    print("-- Classifications Complete -------------")
+    print("-- Validation Complete ------------------")
     print("=========================================")
     print("-- Report -------------------------------")
     print("   Rounded Hits:")
@@ -301,29 +305,65 @@ ANN.classify            <- function (inputValidData, validTargets = vector(), ca
     )
 }
 
+ANN.classify        <- function (inputTestData, calibratedWeights = computedWeights$trainedWeights, calibratedHidden = computedWeights$trainedHidden, kernel = kernel, verboseClassify = TRUE) {
+    # Configure
+    kernelFunction      <- match.fun(kernel) 
+    inputTestDataDim    <- dim(inputTestData)
+    inputTestLengthC    <- inputTestDataDim[1]
+    inputTestLengthR    <- inputTestDataDim[2]
+    testDistanceList    <- vector()
+    classes             <- vector()
+    print("=========================================")
+    print("-- Classifying Data ---------------------")
+    print("=========================================")
+    for (i in 1:inputTestLengthC) {
+        if (verboseClassify == TRUE) {
+            print("-- New Sample ---------------------------")
+            print("   Forward-Propagating...")
+            print(paste("       Test Sample", i))
+        }
+        # Forward Propagation
+        inputTestSample    <- inputTestData[i,]
+        testHiddenLayer    <- kernelFunction(inputTestSample %*% calibratedWeights)
+        testHiddenLayer    <- c(insert(testHiddenLayer, element = 1.0)) # Insert Bias Term to Hidden Layer
+        testOutput         <- kernelFunction(testHiddenLayer %*% calibratedHidden)
+        classes             <- c(classes, testOutput)
+        # Metric Computation & Communication      
+        if (verboseClassify == TRUE) {
+            print(paste("       Computed Value:        ", decimals(testOutput, 8)))
+            print(paste("       Computed Class:        ", round(testOutput)))
+            print("-- Sample Done --------------------------")
+        }
+    }
+    print("=========================================")
+    print("-- Classifications Complete -------------")
+    print("=========================================")
+    # Return Results
+    list (
+        inferences  = classes,
+        classes     = round(classes)
+    )
+}
+
 # 
 # Sample Usage
 # 
 
 # Import Data
 data.train.raw          <- read.csv("data/training.csv")
-data.valid.raw          <- read.csv("data/validating.csv")
 data.train.classes      <- read.csv("data/training-classes.csv")
+data.valid.raw          <- read.csv("data/validating.csv")
 data.valid.classes      <- read.csv("data/validating-classes.csv")
-
-# 
-# Data Wrangling
-# 
 
 # Coerce Data Frames to Matrix
 data.train              <- as.matrix(data.train.raw)
 data.valid              <- as.matrix(data.valid.raw)
 
-# Pivot Known Sample Classes
+# Pivot Known Sample Classes for Input
 data.train.classes      <- t(data.train.classes)
 data.valid.classes      <- t(data.valid.classes)
 
-# Train ANN Model
+# Model Training
 trainedModel            <- ANN.train (
     epochs                  = 20,
     inputTrainingData       = data.train,
@@ -350,12 +390,44 @@ trainedModel            <- ANN.train (
 # Sample Model Validation
 # 
 
-validation              <- ANN.classify (
+# Model Validation
+validatedModel          <- ANN.validate (
     inputValidData          = data.valid, 
     validTargets            = data.valid.classes,
     calibratedWeights       = trainedModel$trainedWeights, 
     calibratedHidden        = trainedModel$trainedHidden,
     kernel                  = trainedModel$kernel,
-    verboseClassify         = TRUE
+    verboseValidate         = TRUE
 )
 
+# 
+# Sample Classification
+# 
+
+# Test Data (Combine Train & Validation Data. Note this is bad, and only done for illustrative purposes.)
+data.classify           <- rbind(data.train, data.valid)
+data.classify.classes   <- as.matrix(c(data.train.classes, data.valid.classes))
+
+# Randomize Order
+randomOrder             <- as.matrix(sample(nrow(data.classify)))
+
+# Re-order Data & Known Classes
+data.classify           <- data.classify[randomOrder,]
+data.classify.classes   <- data.classify.classes[randomOrder,]
+
+# Generate Inferences
+classifications         <- ANN.classify (
+    inputTestData           = data.classify,
+    calibratedWeights       = trainedModel$trainedWeights,
+    calibratedHidden        = trainedModel$trainedHidden,
+    kernel                  = trainedModel$kernel,
+    verboseClassify         = FALSE
+)
+
+# 
+# Output Infernences & Known Classes
+# 
+
+print(classifications)
+print("Known Classes")
+print(data.classify.classes)
