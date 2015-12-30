@@ -20,7 +20,7 @@ set.seed(1337)
 # 
 
 # Insert an Element into a Vector at a Specified Position (position 0 default)
-insert              <- function (vector, element, position = 0) {
+.insert              <- function (vector, element, position = 0) {
     length <- length(vector)
     if (position == 0) {
         return (c(element, vector[0:(length)]))
@@ -32,9 +32,9 @@ insert              <- function (vector, element, position = 0) {
 }
 
 # Generates a Numeric Vector of Length n with a Specified Value or Random Values Between Lower & Upper Bounds (default behavior)
-generateVector      <- function (n, value = FALSE, lower = -0.5, upper = 0.5) {
+.generateVector      <- function (n, value = FALSE, lower = -0.5, upper = 0.5) {
     if (is.numeric(value == FALSE)) {
-        print("Error: generateVector() - Value Should Be a Numeric Type")
+        print("Error: .generateVector() - Value Should Be a Numeric Type")
         v = FALSE
     } else if (identical(value, FALSE)) {
         v <- c(runif(n, min = lower, max = upper))
@@ -49,37 +49,8 @@ generateVector      <- function (n, value = FALSE, lower = -0.5, upper = 0.5) {
 # 
 
 # How Many Decimals?
-decimals            <- function (x, d) {
+.decimals            <- function (x, d) {
     y <- format(round(x, d), nsmall = d)
-    y
-}
-
-# 
-# Kernel Activation Functions
-# 
-
-# Sigmoid function (Default Kernel) 
-sigmoid             <- function (x) {
-    y <- 1 / (1 + exp(-x))
-    y
-}
-
-# Signum function (Test)
-signum              <- function (x) {
-    y <- sign(x)
-    y[y == 0] <- 1
-    y
-}
-
-# Fast Sigmoid Approximation (Test)
-fSigmoid            <- function (x) {
-    y <- x / (1 + abs(x))
-    y
-}
-
-# Rectified Linear Unit (ReLU) (Test)
-relu                <- function (x) {
-    y <- log(1 + exp(x))
     y
 }
 
@@ -94,7 +65,7 @@ ANN.train               <- function (epochs = 2, inputTrainingData, trainingTarg
     inputTrainingLengthC    <- inputTrainingDataDim[1]
     inputTrainingLengthR    <- inputTrainingDataDim[2]
     trainingWeights         <- matrix(runif(((inputTrainingLengthR) * hiddenNodes), min = - dataWeightsLimit, max = dataWeightsLimit), nrow = inputTrainingLengthR, ncol = hiddenNodes, byrow = T)
-    hiddenWeights           <- matrix(generateVector(hiddenNodes + 1, lower = - hiddenWeightsLimit, upper = hiddenWeightsLimit), nrow = hiddenNodes + 1, ncol = 1, byrow = T)
+    hiddenWeights           <- matrix(.generateVector(hiddenNodes + 1, lower = - hiddenWeightsLimit, upper = hiddenWeightsLimit), nrow = hiddenNodes + 1, ncol = 1, byrow = T)
     geneExpression          <- data.frame()
     if (length(plotData) > 0) {
         if (plotData$SSE == TRUE) {
@@ -137,7 +108,7 @@ ANN.train               <- function (epochs = 2, inputTrainingData, trainingTarg
             }
             # Forward Propagation
             hiddenLayer     <- kernelFunction(inputTrainingData[i,] %*% trainingWeights)
-            hiddenLayer     <- c(insert(hiddenLayer, element = 1)) # Insert Bias Term to Hidden Layer
+            hiddenLayer     <- c(.insert(hiddenLayer, element = 1)) # Insert Bias Term to Hidden Layer
             output          <- kernelFunction(hiddenLayer %*% hiddenWeights)
             classifications <- c(classifications, output)
             # Metric Computation & Communication   
@@ -148,9 +119,9 @@ ANN.train               <- function (epochs = 2, inputTrainingData, trainingTarg
             if (verboseTrain == TRUE) {
                 print(paste("       Known Class:           ", trainingTargets[i]))
                 print(paste("       Computed Class:        ", round(output)))
-                print(paste("       Computed Value:        ", decimals(output, 8)))
-                print(paste("       Raw Distance:          ", decimals(distance, 8)))
-                print(paste("       Computed SSE:          ", decimals(error, 8)))
+                print(paste("       Computed Value:        ", .decimals(output, 8)))
+                print(paste("       Raw Distance:          ", .decimals(distance, 8)))
+                print(paste("       Computed SSE:          ", .decimals(error, 8)))
             }
             if (abs(rounded - trainingTargets[i]) == 0) {
                 hit <- hit + 1
@@ -161,7 +132,7 @@ ANN.train               <- function (epochs = 2, inputTrainingData, trainingTarg
             }
             if (verboseTrain == TRUE) {
                 print(paste("           Epoch Hits / Total:", hit, "/", grand))
-                print(paste("           Epoch Hit Percent: ", decimals((hit/grand) * 100, 2)))
+                print(paste("           Epoch Hit Percent: ", .decimals((hit/grand) * 100, 2)))
                 print("   Back-Propagating...")
             }
             # Back Propagation
@@ -176,10 +147,10 @@ ANN.train               <- function (epochs = 2, inputTrainingData, trainingTarg
             # Plot Points & Communication
             if (length(plotData) > 0) {
                 if (plotData$SSE == TRUE) {
-                    meanSSE     <- c(insert(meanSSE, element = error)) 
+                    meanSSE     <- c(.insert(meanSSE, element = error)) 
                     points(x = n, y = error , col = 'orange')
                 } else if (plotData$distance == TRUE) {
-                    meanDistance<- c(insert(meanDistance, element = distance))
+                    meanDistance<- c(.insert(meanDistance, element = distance))
                     points(x = n, y = distance, col = 'blue')   
                 }
             }
@@ -205,7 +176,7 @@ ANN.train               <- function (epochs = 2, inputTrainingData, trainingTarg
         print("-- Report -------------------------------")
         print("   Rounded Hits Last Epoch:")
         print(paste("       Train Hits / Total:     ", hit, "/", grand))
-        print(paste("       Train Hit Percent:      ", decimals((hit/grand) * 100, 2))) 
+        print(paste("       Train Hit Percent:      ", .decimals((hit/grand) * 100, 2))) 
     }
     if (length(plotData) > 0) {
         if (plotData$SSE == TRUE) {
@@ -256,12 +227,12 @@ ANN.validate        <- function (inputValidData, validTargets = vector(), calibr
         # Forward Propagation
         inputValidSample    <- inputValidData[i,]
         validHiddenLayer    <- kernelFunction(inputValidSample %*% calibratedWeights)
-        validHiddenLayer    <- c(insert(validHiddenLayer, element = 1.0)) # Insert Bias Term to Hidden Layer
+        validHiddenLayer    <- c(.insert(validHiddenLayer, element = 1.0)) # Insert Bias Term to Hidden Layer
         validOutput         <- kernelFunction(validHiddenLayer %*% calibratedHidden)
         classes             <- c(classes, validOutput)
         # Metric Computation & Communication      
         if (verboseValidate == TRUE) {
-            print(paste("       Computed Value:        ", decimals(validOutput, 8)))
+            print(paste("       Computed Value:        ", .decimals(validOutput, 8)))
             print(paste("       Computed Class:        ", round(validOutput)))
         }
         if (length(validTargets > 0)) {
@@ -271,8 +242,8 @@ ANN.validate        <- function (inputValidData, validTargets = vector(), calibr
             validDistanceList   <- c(validDistanceList, validDistance) # For Monitoring Error Reduction  
             if (verboseValidate == TRUE) {
                 print(paste("       Known Class:           ", validTargets[i]))
-                print(paste("       Raw Distance:          ", decimals(validDistance, 8)))
-                print(paste("       Computed SSE:          ", decimals(validError, 8)))
+                print(paste("       Raw Distance:          ", .decimals(validDistance, 8)))
+                print(paste("       Computed SSE:          ", .decimals(validError, 8)))
             }
             if (abs(validRounded - validTargets[i]) == 0) {
                 validHit    <- validHit + 1
@@ -283,7 +254,7 @@ ANN.validate        <- function (inputValidData, validTargets = vector(), calibr
             }
             if (verboseValidate == TRUE) {
                 print(paste("           Valid Hits / Total: ", validHit, "/", validGrand))
-                print(paste("           Valid Hit Percent:  ", decimals((validHit/validGrand) * 100, 2)))
+                print(paste("           Valid Hit Percent:  ", .decimals((validHit/validGrand) * 100, 2)))
                 print("-- Sample Done --------------------------")
             }
         }
@@ -294,14 +265,14 @@ ANN.validate        <- function (inputValidData, validTargets = vector(), calibr
     print("-- Report -------------------------------")
     print("   Rounded Hits:")
     print(paste("       Valid Hits / Total:     ", validHit, "/", validGrand))
-    print(paste("       Valid Hit Percent:      ", decimals((validHit/validGrand) * 100, 2)))
+    print(paste("       Valid Hit Percent:      ", .decimals((validHit/validGrand) * 100, 2)))
     # Return Results
     list (
         inferences  = classes,
         classes     = round(classes),
         hits        = validHit,
         total       = validGrand,
-        percent     = decimals((validHit/validGrand) * 100, 2)
+        percent     = .decimals((validHit/validGrand) * 100, 2)
     )
 }
 
@@ -325,12 +296,12 @@ ANN.classify        <- function (inputTestData, calibratedWeights = computedWeig
         # Forward Propagation
         inputTestSample    <- inputTestData[i,]
         testHiddenLayer    <- kernelFunction(inputTestSample %*% calibratedWeights)
-        testHiddenLayer    <- c(insert(testHiddenLayer, element = 1.0)) # Insert Bias Term to Hidden Layer
+        testHiddenLayer    <- c(.insert(testHiddenLayer, element = 1.0)) # Insert Bias Term to Hidden Layer
         testOutput         <- kernelFunction(testHiddenLayer %*% calibratedHidden)
         classes             <- c(classes, testOutput)
         # Metric Computation & Communication      
         if (verboseClassify == TRUE) {
-            print(paste("       Computed Value:        ", decimals(testOutput, 8)))
+            print(paste("       Computed Value:        ", .decimals(testOutput, 8)))
             print(paste("       Computed Class:        ", round(testOutput)))
             print("-- Sample Done --------------------------")
         }
@@ -344,90 +315,3 @@ ANN.classify        <- function (inputTestData, calibratedWeights = computedWeig
         classes     = round(classes)
     )
 }
-
-# 
-# Sample Usage
-# 
-
-# Import Data
-data.train.raw          <- read.csv("data/training.csv")
-data.train.classes      <- read.csv("data/training-classes.csv")
-data.valid.raw          <- read.csv("data/validating.csv")
-data.valid.classes      <- read.csv("data/validating-classes.csv")
-
-# Coerce Data Frames to Matrix
-data.train              <- as.matrix(data.train.raw)
-data.valid              <- as.matrix(data.valid.raw)
-
-# Pivot Known Sample Classes for Input
-data.train.classes      <- t(data.train.classes)
-data.valid.classes      <- t(data.valid.classes)
-
-# Model Training
-trainedModel            <- ANN.train (
-    epochs                  = 20,
-    inputTrainingData       = data.train,
-    trainingTargets         = data.train.classes,
-    kernel                  = "sigmoid",
-    etaP                    = 0.02, 
-    etaH                    = 0.02, 
-    hiddenNodes             = 30, 
-    dataWeightsLimit        = 0.5, 
-    hiddenWeightsLimit      = 0.5, 
-    plotData                = list(
-        SSE                     = FALSE,
-        distance                = FALSE,
-        weightMeans             = list(
-            plot                    = FALSE,
-            lables                  = ""
-        )
-    ),
-    classification          = TRUE,
-    verboseTrain            = TRUE
-)
-
-# 
-# Sample Model Validation
-# 
-
-# Model Validation
-validatedModel          <- ANN.validate (
-    inputValidData          = data.valid, 
-    validTargets            = data.valid.classes,
-    calibratedWeights       = trainedModel$trainedWeights, 
-    calibratedHidden        = trainedModel$trainedHidden,
-    kernel                  = trainedModel$kernel,
-    verboseValidate         = TRUE
-)
-
-# 
-# Sample Classification
-# 
-
-# Test Data (Combine Train & Validation Data. Note this is bad, and only done for illustrative purposes.)
-data.classify           <- rbind(data.train, data.valid)
-data.classify.classes   <- as.matrix(c(data.train.classes, data.valid.classes))
-
-# Randomize Order
-randomOrder             <- as.matrix(sample(nrow(data.classify)))
-
-# Re-order Data & Known Classes
-data.classify           <- data.classify[randomOrder,]
-data.classify.classes   <- data.classify.classes[randomOrder,]
-
-# Generate Inferences
-classifications         <- ANN.classify (
-    inputTestData           = data.classify,
-    calibratedWeights       = trainedModel$trainedWeights,
-    calibratedHidden        = trainedModel$trainedHidden,
-    kernel                  = trainedModel$kernel,
-    verboseClassify         = FALSE
-)
-
-# 
-# Output Infernences & Known Classes
-# 
-
-print(classifications)
-print("Known Classes")
-print(data.classify.classes)
