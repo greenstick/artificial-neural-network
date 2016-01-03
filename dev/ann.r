@@ -14,7 +14,7 @@
 # set.seed(1337)
 
 # 
-# Some Private (.x) Utility Functions
+# Some Private Utility Functions (i.e. They're not private but they're also not there to be called directly)
 # 
 
     # Insert an Element into a Vector at a Specified Position (position 0 default)
@@ -43,7 +43,7 @@
     }
 
 # 
-# Print Formatting Functions
+# Pretty Print Formatting Functions
 # 
 
     # How Many Decimals?
@@ -62,26 +62,26 @@
         y
     }
 
-    # Signum function (Test)
+    # Signum function (Experimental)
     signum              <- function (x) {
         y <- sign(x)
         y[y == 0] <- 1
         y
     }
 
-    # Fast Sigmoid Approximation (Test)
+    # Fast Sigmoid Approximation (Experimental)
     fSigmoid            <- function (x) {
         y <- x / (1 + abs(x))
         y
     }
 
-    # Rectified Linear Unit (ReLU) (Test)
+    # Rectified Linear Unit (Experimental)
     relu                <- function (x) {
         y <- log(1 + exp(x))
         y
     }
 
-    # SoftMax (Test)
+    # SoftMax (Experimental)
     softmax             <- function (x, lamda = 2) {
         y <- 1 / (1 + exp((x - mean(x))/(lamda * sd(x) / 2 * pi)))
         y
@@ -99,7 +99,7 @@
 # kernel                optional - string                   default = "sigmoid"     activation function (sigmoid, signum, fSigmoid, relu)
 # etaW                  optional - float                    default = 0.1           weights learning parameter
 # etaH                  optional - float                    default = 0.01          hidden layer learning parameter
-# annealing             optional - float                    default = 0.0           (experimental) annealing evaluated per epoch via formula (eta = eta - (eta * annealing) for etaW & etaW
+# annealing             optional - float                    default = 0.0           (experimental) annealing evaluated per epoch via formula (eta = eta - (eta * annealing) for etaW & etaH
 # hiddenNodes           optional - integer                  default = 1             nodes in hidden layer
 # dropout               optional - float                    default = 0.5           proportion of neurons to drop out (1.0 = no dropout)
 # dataWeightsLimit      optional - numeric                  default = 0.05          starting weights limit for weight layer
@@ -183,7 +183,6 @@ ANN.train               <- function (inputTrainingData, trainingClasses, epochs 
                 updatedWeights      <- trainingWeights[[j]] + weightChange
                 trainingWeights[[j]]<- updatedWeights
             }
-            # Subtract 1 'Cause R Uses 1-Based Indexing
             trainClass          <- order(classifications[i,], decreasing = TRUE)[1]
             if (trainTarget == trainClass) {
                 hit                 <- hit + 1
@@ -380,7 +379,7 @@ ANN.classify            <- function (inputTestData, uniqueClasses, calibratedWei
 }
 
 # 
-# Sample Usage
+# Main Routine
 # 
 
 # Get Time
@@ -399,7 +398,7 @@ split                   <- data.rowCount * 0.9
 data.train              <- data.raw[0:split,]
 data.valid              <- data.raw[split:data.rowCount,]
 
-# Extract Known Classes (0 - 9); Increment by 1 for 1-Based Indexing in R (1 - 10)
+# Extract Known Classes (0 - 9); Increment by 1 for 1-Based Indexing in R (1 - 10) (because we're actually classifying digits!)
 data.train.classes      <- data.train$label + 1
 data.valid.classes      <- data.valid$label + 1
 
@@ -412,16 +411,16 @@ data.test               <- as.matrix(data.test.raw)
 trainedModel            <- ANN.train (
     inputTrainingData       = data.train,
     trainingClasses         = data.train.classes,
-    epochs                  = 5,
+    epochs                  = 1,
     kernel                  = "sigmoid",
     etaW                    = 0.03,
     etaH                    = 0.3,
     annealing               = 0.1,
-    hiddenNodes             = 600,
+    hiddenNodes             = 1000,
     dataWeightsLimit        = 0.05,
     hiddenWeightsLimit      = 0.05,
     classification          = TRUE,
-    verboseTrain            = FALSE
+    verboseTrain            = TRUE
 )
 
 # Model Validation
@@ -446,7 +445,7 @@ classifications         <- ANN.classify (
 )
 
 # 
-# Output Inferences & Known Classes
+# Save Inferences
 # 
 
 # Format
