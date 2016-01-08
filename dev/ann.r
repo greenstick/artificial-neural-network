@@ -1,31 +1,22 @@
 #!/usr/bin/env Rscript
 
-#
-# Setup
-#
-
-# Get Session Information
-# sessionInfo()
-
-# Set Directory
-# setwd("") 
-
-# Set Seed
-# set.seed(1337)
+# # # # # # # # # # # 
+# Utility Functions #
+# # # # # # # # # # #
 
 # 
-# Some Private Utility Functions (i.e. They're not private but they're also not there to be called directly)
+# Vector Functions
 # 
 
     # Insert an Element into a Vector at a Specified Position (position 0 default)
-    .insert              <- function (vector, element, position = 0) {
+    .insert              <- function (vector, element, position = 1) {
         length <- length(vector)
-        if (position == 0) {
-            return (c(element, vector[0:(length)]))
+        if (position == 1) {
+            return (c(element, vector[1:length]))
         } else if (position > length) {
-            return (c(vector[1:(length)], element))       
+            return (c(vector[1:length], element))
         } else {
-            return (c(vector[1:(position - 1)], element, vector[(position):length]))
+            return (c(vector[1:(position - 1)], element, vector[position:length]))
         }
     }
 
@@ -40,6 +31,49 @@
             v <- c(rep(value, n))
         }
         v
+    }
+
+# 
+# Matrix Functions
+# 
+
+
+    # Normalize Matrix Columns (safe parameter ignores columns that sum to 0, set to FALSE for a small gain in speed when max value of all columns is known to be > 0)
+    .normalizeMatrixCols   <- function (m, safe = TRUE) {
+        if (safe == TRUE) {
+            for (i in 1:ncol(m)) {
+                if (sum(m[,i]) > 0) {
+                    m[,i] <- (m[,i] - min(m[,i])) / (max(m[,i]) - min(m[,i]))
+                }
+            }
+        } else {
+            m <- m %*% diag(1 / colSums(m))
+        }
+        m
+    }
+
+    # Normalize Matrix Rows (safe parameter ignores rows that sum to 0, set to FALSE for a small gain in speed when max value of all rows is known to be > 0)
+    .normalizeMatrixRows    <- function (m, safe = TRUE) {
+        if (safe == TRUE) {
+            for (i in 1:nrow(m)) {
+                if (sum(m[i,]) > 0) {
+                    m[i,] <- (m[i,] - min(m[i,])) / (max(m[i,]) - min(m[i,]))
+                }
+            }
+        } else {
+            m <- m %*% diag(1 / rowSums(m))
+        }
+        m
+    }
+
+    # Rotate matrix 90 degrees clockwise
+    .rotateMatrix           <- function (m, clockwise = TRUE) {
+        if (clockwise == TRUE) {
+            m <- t(m[nrow(m):1,])
+        } else {
+            m <- t(m)[ncol(m):1,]
+        }
+        m
     }
 
 # 
@@ -87,127 +121,131 @@
         y
     }
 
+# # # # # # # # # # # # # # # 
+# Artificial Neural Network #
+# # # # # # # # # # # # # # #
+
 # 
-# Artifical Neural Network Training Function
+# Artifical Neural Network Training Method
 # 
 
 # Params - 
 #
-# inputTrainingData     required - matrix of numerics                               data to train on
-# trainingClasses       required - vector of integers                               known sample classes (or values in regression)
-# epochs                optional - integer                  default = 20            number of epochs to train
-# kernel                optional - string                   default = "sigmoid"     activation function (sigmoid, signum, fSigmoid, relu)
-# etaW                  optional - float                    default = 0.1           weights learning parameter
-# etaH                  optional - float                    default = 0.01          hidden layer learning parameter
-# annealing             optional - float                    default = 0.0           (experimental) annealing evaluated per epoch via formula (eta = eta - (eta * annealing) for etaW & etaH
-# hiddenNodes           optional - integer                  default = 1             nodes in hidden layer
-# dropout               optional - float                    default = 0.5           proportion of neurons to drop out (1.0 = no dropout)
-# dataWeightsLimit      optional - numeric                  default = 0.05          starting weights limit for weight layer
-# hiddenWeightsLimit    optional - numeric                  default = 0.5           starting weights limit for hiden layer
-# classification        optional - boolean                  default = TRUE          train classification (TRUE) or regression model (FALSE)
-# verboseTrain          optional - boolean                  default = FALSE         display verbose console output 
+# ANN.train.data            required - matrix of numerics                               data to train on
+# ANN.train.classes         required - vector of integers                               known sample classes (or values in regression)
+# ANN.train.epochs          optional - integer                  default = 20            number of ANN.train.epochs to train
+# ANN.train.kernel          optional - string                   default = "sigmoid"     activation function (sigmoid, signum, fSigmoid, relu)
+# ANN.train.etaW            optional - float                    default = 0.1           weights learning parameter
+# ANN.train.etaH            optional - float                    default = 0.01          hidden layer learning parameter
+# ANN.train.annealing       optional - boolean                  default = FALSE         (experimental) reduces eta value(s) using the following formula: eta = eta - (eta * (1 - successfulEpochClassifications / totalEpochClassifications))
+# ANN.train.hidden.nodes    optional - integer                  default = 1             nodes in hidden layer
+# ANN.train.dropout         optional - float                    default = 0.5           (not implemented) proportion of neurons to drop out (1.0 = no dropout)
+# ANN.train.weights.limit   optional - numeric                  default = 0.05          starting weights limit for weight layer
+# ANN.train.hidden.limit    optional - numeric                  default = 0.5           starting weights limit for hiden layer
+# ANN.train.classification  optional - boolean                  default = TRUE          train classification (TRUE) or regression model (FALSE)
+# ANN.train.verbose         optional - boolean                  default = FALSE         display verbose console output
 
-ANN.train               <- function (inputTrainingData, trainingClasses, epochs = 1, kernel = "sigmoid", etaW = 0.1, etaH = 0.01, annealing = 0.0, hiddenNodes = 20, dropout = 0.5, dataWeightsLimit = 0.05, hiddenWeightsLimit = 0.5, classification = TRUE, verboseTrain = FALSE) {
+ANN.train                   <- function (ANN.train.data, ANN.train.classes, ANN.train.epochs = 1, ANN.train.kernel = "sigmoid", ANN.train.etaW = 0.1, ANN.train.etaH = 0.01, ANN.train.hidden.nodes = 20, ANN.train.dropout = 0.5, ANN.train.weights.limit = 0.05, ANN.train.hidden.limit = 0.5, ANN.train.annealing = FALSE, ANN.train.classification = TRUE, ANN.train.verbose = FALSE) {
     # Configuration 
-    kernelFunction          <- match.fun(kernel)  
-    uniqueClasses           <- length(unique(trainingClasses))
-    inputTrainingLengthC    <- ncol(inputTrainingData)
-    inputTrainingLengthR    <- nrow(inputTrainingData)
-    trainingWeights         <- list()
-    hiddenWeights           <- list()
-    trainingTargets         <- matrix(0, nrow = nrow(inputTrainingData), ncol = uniqueClasses)
+    ANN.train.classes.unique    <- length(unique(ANN.train.classes))
+    ANN.train.data.ncol         <- ncol(ANN.train.data)
+    ANN.train.data.nrow         <- nrow(ANN.train.data)
+    ANN.train.input.weights      <- list()
+    ANN.train.hidden.weights    <- list()
+    ANN.train.targets           <- matrix(0, nrow = nrow(ANN.train.data), ncol = ANN.train.classes.unique)
+    kernelFunction              <- match.fun(ANN.train.kernel)  
     # Generate Dummy Variables for Classification
-    for (i in 1:nrow(trainingTargets)) {
-        trainingTargets[i,trainingClasses[i]] <- 1
+    for (i in 1:nrow(ANN.train.targets)) {
+        ANN.train.targets[i,ANN.train.classes[i]] <- 1
     }
     # Generate n - 1 
-    for (i in 1:uniqueClasses) {
-        trainingWeights[[i]]    <- matrix(runif(((inputTrainingLengthC) * hiddenNodes), min = - dataWeightsLimit, max = dataWeightsLimit), nrow = inputTrainingLengthC, ncol = hiddenNodes, byrow = T)
-        hiddenWeights[[i]]      <- matrix(.generateVector(hiddenNodes + 1, lower = - hiddenWeightsLimit, upper = hiddenWeightsLimit), nrow = hiddenNodes + 1, ncol = 1, byrow = T)
+    for (i in 1:ANN.train.classes.unique) {
+        ANN.train.input.weights[[i]]     <- matrix(runif(((ANN.train.data.ncol) * ANN.train.hidden.nodes), min = - ANN.train.weights.limit, max = ANN.train.weights.limit), nrow = ANN.train.data.ncol, ncol = ANN.train.hidden.nodes, byrow = T)
+        ANN.train.hidden.weights[[i]]   <- matrix(.generateVector(ANN.train.hidden.nodes + 1, lower = - ANN.train.hidden.limit, upper = ANN.train.hidden.limit), nrow = ANN.train.hidden.nodes + 1, ncol = 1, byrow = T) # Add node for bias term
     }
     # Epoch Loop   
     print("=========================================")
     print("-- Training . . .")
     print("=========================================")  
-    for (n in 1:epochs) {
+    for (n in 1:ANN.train.epochs) {
         # Configure Epoch
-        distanceList            <- matrix(0, nrow = length(trainingClasses), ncol = uniqueClasses)
-        classifications         <- matrix(0, nrow = length(trainingClasses), ncol = uniqueClasses)
-        iRandomization          <- sample(inputTrainingLengthR)
-        hit                     <- 0
-        miss                    <- 0
-        grand                   <- 0
-        if (verboseTrain == TRUE) {
+        ANN.train.classifications   <- matrix(0, nrow = length(ANN.train.classes), ncol = ANN.train.classes.unique)
+        iRandomization              <- sample(ANN.train.data.nrow)
+        ANN.train.metrics.hit       <- 0
+        ANN.train.metrics.miss      <- 0
+        ANN.train.metrics.total     <- 0
+        if (ANN.train.verbose == TRUE) {
             print("=========================================")
             print(paste("-- Epoch", n, "Start"))
             print("=========================================")
         }
         for (i in iRandomization) {
             # Sample Loop     
-            grand               <- grand + 1
-            cHit                <- 0
-            cMiss               <- 0
-            trainTarget         <- order(trainingTargets[i,], decreasing = TRUE)[1]
-            if (verboseTrain == TRUE) {
+            ANN.train.metrics.total <- ANN.train.metrics.total + 1
+            cHit                    <- 0
+            cMiss                   <- 0
+            trainTarget             <- order(ANN.train.targets[i,], decreasing = TRUE)[1]
+            if (ANN.train.verbose == TRUE) {
                 print("-- New Sample ---------------------------")
                 print(paste("       Sample", i, "of Epoch", n))
             }
-            for (j in 1:uniqueClasses) {
-                if (verboseTrain == TRUE) {
+            for (j in 1:ANN.train.classes.unique) {
+                if (ANN.train.verbose == TRUE) {
                     print(paste("-- Class", j, "Network"))
                     print("   Forward-Propagating...")
-                }  
+                }
                 # Forward Propagation
-                hiddenLayer         <- kernelFunction(inputTrainingData[i,] %*% trainingWeights[[j]])
-                hiddenLayer         <- c(.insert(hiddenLayer, element = 1)) # Insert Bias Term to Hidden Layer
-                output              <- kernelFunction(hiddenLayer %*% hiddenWeights[[j]])
-                classifications[i, j] <- output
+                ANN.train.layer.hidden  <- kernelFunction(ANN.train.data[i,] %*% ANN.train.input.weights[[j]])
+                ANN.train.layer.hidden  <- c(.insert(ANN.train.layer.hidden, element = 1)) # Insert Bias Term to Hidden Layer
+                ANN.train.sample.output <- kernelFunction(ANN.train.layer.hidden %*% ANN.train.hidden.weights[[j]])
+                ANN.train.classifications[i, j] <- ANN.train.sample.output
                 # Metric Computation & Communication   
-                error               <- 0.5 * (trainingTargets[i, j] - output) ^ 2
-                distance            <- abs(trainingTargets[i, j] - output) # An Easily Interpretable Error Measure
-                distanceList[i, j]  <- distance # For Monitoring Error Reduction
-                if (verboseTrain == TRUE) {
+                ANN.train.sample.error  <- 0.5 * (ANN.train.targets[i, j] - ANN.train.sample.output) ^ 2 # SE For Monitoring Error Reduction
+                ANN.train.sample.distance <- abs(ANN.train.targets[i, j] - ANN.train.sample.output) # An Easily Interpretable Error Measure (Raw Distance)
+                if (ANN.train.verbose == TRUE) {
                     print(paste("       Known Class:           ", trainTarget))
-                    print(paste("       Computed Value:        ", .decimals(output, 8)))
-                    print(paste("       Raw Distance:          ", .decimals(distance, 8)))
-                    print(paste("       Computed SSE:          ", .decimals(error, 8)))
+                    print(paste("       Computed Value:        ", .decimals(ANN.train.sample.output, 8)))
+                    print(paste("       Raw Distance:          ", .decimals(ANN.train.sample.distance, 8)))
+                    print(paste("       Computed SSE:          ", .decimals(ANN.train.sample.error, 8)))
                     print("   Back-Propagating...")
                 }
                 # Back Propagation
-                deltaP              <- drop((trainingTargets[i, j] - output) * output * (1 - output))
-                deltaH              <- (hiddenLayer * (1 - hiddenLayer) * hiddenWeights[[j]] * deltaP)[-c(1)] # Compute deltaH & Remove Bias Term
-                hiddenChange        <- etaH * hiddenLayer * deltaP
-                updatedHidden       <- as.matrix(hiddenLayer) + as.matrix(hiddenChange)
-                hiddenLayer         <- updatedHidden
-                weightChange        <- etaW * t(inputTrainingData[i,, drop = FALSE]) %*% deltaH
-                updatedWeights      <- trainingWeights[[j]] + weightChange
-                trainingWeights[[j]]<- updatedWeights
+                delta.w                 <- drop((ANN.train.targets[i, j] - ANN.train.sample.output) * ANN.train.sample.output * (1 - ANN.train.sample.output))
+                delta.h                 <- (ANN.train.layer.hidden * (1 - ANN.train.layer.hidden) * ANN.train.hidden.weights[[j]] * delta.w)[-c(1)] # Compute delta.h & Remove Bias Term
+                change.hidden           <- ANN.train.etaH * ANN.train.layer.hidden * delta.w
+                updatedHidden           <- as.matrix(ANN.train.layer.hidden) + as.matrix(change.hidden)
+                ANN.train.layer.hidden  <- updatedHidden
+                change.input            <- ANN.train.etaW * t(ANN.train.data[i,, drop = FALSE]) %*% delta.h
+                ANN.train.input.weights[[j]] <- ANN.train.input.weights[[j]] + change.input
             }
-            trainClass          <- order(classifications[i,], decreasing = TRUE)[1]
-            if (trainTarget == trainClass) {
-                hit                 <- hit + 1
-                if (verboseTrain == TRUE) print("       classification Status:  hit! :)")
+            ANN.train.sample.class.computed <- order(ANN.train.classifications[i,], decreasing = TRUE)[1]
+            if (trainTarget == ANN.train.sample.class.computed) {
+                ANN.train.metrics.hit                 <- ANN.train.metrics.hit + 1
+                if (ANN.train.verbose == TRUE) print("       classification Status:  Hit! :)")
             } else {
-                miss                <- miss + 1
-                if (verboseTrain == TRUE) print("       Classification Status:  miss :(")
+                ANN.train.metrics.miss                <- ANN.train.metrics.miss + 1
+                if (ANN.train.verbose == TRUE) print("       Classification Status:  Miss :(")
             }
-            if (verboseTrain == TRUE) {
-                print(paste("           Epoch Hits / Total:", hit, "/", grand))
-                print(paste("           Epoch Hit Percent: ", .decimals((hit/grand) * 100, 2)))
+            if (ANN.train.verbose == TRUE) {
+                print(paste("           Epoch Hits / Total:", ANN.train.metrics.hit, "/", ANN.train.metrics.total))
+                print(paste("           Epoch Hit Percent: ", .decimals((ANN.train.metrics.hit/ANN.train.metrics.total) * 100, 2)))
                 print("-- Sample Done --------------------------")
             }
         }
+        ANN.train.metrics.accuracy    <- ANN.train.metrics.hit / ANN.train.metrics.total
         # Annealing
-        etaW                <- etaW - (etaW * annealing)
-        etaH                <- etaH - (etaH * annealing)
-        if (verboseTrain == TRUE) {
+        if (ANN.train.annealing == TRUE) {
+            ANN.train.etaW                <- ANN.train.etaW - (ANN.train.etaW * (1 - ANN.train.metrics.accuracy))
+            ANN.train.etaH                <- ANN.train.etaH - (ANN.train.etaH * (1 - ANN.train.metrics.accuracy))
+        }
+        if (ANN.train.verbose == TRUE) {
             print("=========================================")
             print(paste("-- Epoch", n, "Done"))
             print("=========================================")
         } else {
-            print(paste("-- Epoch", n, "/", epochs))
-            print(paste("       Hits / Total:", hit, "/", grand))
-            print(paste("       Hit Percent: ", .decimals((hit/grand) * 100, 2)))
+            print(paste("-- Epoch", n, "/", ANN.train.epochs))
+            print(paste("       Hits / Total:", ANN.train.metrics.hit, "/", ANN.train.metrics.total))
+            print(paste("       Hit Percent: ", .decimals((ANN.train.metrics.accuracy) * 100, 2)))
         }
     }
     print("=========================================")
@@ -215,233 +253,288 @@ ANN.train               <- function (inputTrainingData, trainingClasses, epochs 
     print("=========================================") 
     print("-- Report -------------------------------")
     print("   Rounded Hits Last Epoch:")
-    print(paste("       Train Hits / Total:     ", hit, "/", grand))
-    print(paste("       Train Hit Percent:      ", .decimals((hit/grand) * 100, 2))) 
+    print(paste("       Train Hits / Total:     ", ANN.train.metrics.hit, "/", ANN.train.metrics.total))
+    print(paste("       Train Hit Percent:      ", .decimals((ANN.train.metrics.hit/ANN.train.metrics.total) * 100, 2))) 
     # Return Results
     list (
-        uniqueClasses       = uniqueClasses,
-        inferences          = classifications,
-        trainedWeights      = trainingWeights, 
-        trainedHidden       = hiddenWeights, 
-        kernel              = kernel
+        classes.unique  = ANN.train.classes.unique,
+        inferences      = ANN.train.classifications,
+        input.weights   = ANN.train.input.weights,   
+        hidden.weights  = ANN.train.hidden.weights, 
+        kernel          = ANN.train.kernel
     )
 }
 
 # 
-# Artifical Neural Network Validation Function
+# Artifical Neural Network Validation Method
 # 
 
 # PARAMS:
 # 
-# inputValidData        required - matrix of numerics                               validation data 
-# validClasses          required - vector of integers                               known sample classes (or values in regression)
-# uniqueClasses         required - integer                                          number of unique classes in training data
-# calibratedWeights     required - matrix of numerics                               calibrated weights matrix from trained model
-# calibratedHidden      required - matrix of numerics                               calibrated hidden layer from trained model
-# kernel                required - string                                           kernel function from trained model
-# verboseValidate       optional - boolean                  default = FALSE         display verbose console output 
+# ANN.valid.data                        required - matrix of numerics                               validation data 
+# ANN.valid.classes                     required - vector of integers                               known sample classes (or values in regression)
+# ANN.valid.classes.unique              required - integer                                          number of unique classes in training data
+# ANN.valid.input.weights.calibrated     required - matrix of numerics                               calibrated weights matrix from trained model
+# ANN.valid.hidden.weights.calibrated   required - matrix of numerics                               calibrated hidden layer from trained model
+# ANN.valid.kernel                      required - string                                           kernel function from trained model
+# ANN.valid.verbose                     optional - boolean                  default = FALSE         display verbose console output 
 
-ANN.validate            <- function (inputValidData, validClasses, uniqueClasses, calibratedWeights, calibratedHidden, kernel, verboseValidate = FALSE) {
+ANN.validate                <- function (ANN.valid.data, ANN.valid.classes, ANN.valid.classes.unique, ANN.valid.input.weights.calibrated, ANN.valid.hidden.weights.calibrated, ANN.valid.kernel, ANN.valid.verbose = FALSE) {
     # Configure
-    kernelFunction          <- match.fun(kernel) 
-    inputValidLengthR       <- nrow(inputValidData)
-    validTargets            <- matrix(0, nrow = length(validClasses), ncol = uniqueClasses)
-    classifications         <- matrix(0, nrow = nrow(inputValidData), ncol = uniqueClasses)
-    validDistanceList       <- matrix(0, nrow = nrow(inputValidData), ncol = uniqueClasses)
-    validSEList             <- matrix(0, nrow = nrow(inputValidData), ncol = uniqueClasses)
-    validHit                <- 0
-    validMiss               <- 0
-    validGrand              <- 0
-    predictedClasses        <- vector()
+    kernelFunction              <- match.fun(ANN.valid.kernel) 
+    ANN.valid.data.nrow         <- nrow(ANN.valid.data)
+    ANN.valid.classes.predicted <- vector()
+    ANN.valid.targets           <- matrix(0, nrow = length(ANN.valid.classes), ncol = ANN.valid.classes.unique)
+    ANN.valid.classifications   <- matrix(0, nrow = nrow(ANN.valid.data), ncol = ANN.valid.classes.unique)
+    ANN.valid.metrics.distance  <- matrix(0, nrow = nrow(ANN.valid.data), ncol = ANN.valid.classes.unique)
+    ANN.valid.metrics.se        <- matrix(0, nrow = nrow(ANN.valid.data), ncol = ANN.valid.classes.unique)
+    ANN.valid.metrics.hit       <- 0
+    ANN.valid.metrics.miss      <- 0
+    ANN.valid.metrics.total     <- 0
     # Generate Dummy Variables for Classification
-    for (i in 1:nrow(validTargets)) {
-        validTargets[i,validClasses[i]] <- 1
+    for (i in 1:nrow(ANN.valid.targets)) {
+        ANN.valid.targets[i,ANN.valid.classes[i]] <- 1
     }
     print("=========================================")
     print("-- Validating . . .")
     print("=========================================")
-    for (i in 1:inputValidLengthR) {
-        validGrand              <- validGrand + 1
-        cHit                    <- 0
-        cMiss                   <- 0
-        validTarget             <- order(validTargets[i,], decreasing = TRUE)[1]
-        if (verboseValidate == TRUE) {
+    for (i in 1:ANN.valid.data.nrow) {
+        ANN.valid.metrics.total     <- ANN.valid.metrics.total + 1
+        ANN.valid.sample.target     <- order(ANN.valid.targets[i,], decreasing = TRUE)[1]
+        if (ANN.valid.verbose == TRUE) {
             print("-- New Sample ---------------------------")
             print(paste("       Validation Sample", i))
         }
-        for (j in 1:uniqueClasses) {
+        for (j in 1:ANN.valid.classes.unique) {
             # Forward Propagation
-            validHiddenLayer        <- kernelFunction(inputValidData[i,] %*% calibratedWeights[[j]])
-            validHiddenLayer        <- c(.insert(validHiddenLayer, element = 1.0)) # Insert Bias Term to Hidden Layer
-            validOutput             <- kernelFunction(validHiddenLayer %*% calibratedHidden[[j]])
-            classifications[i, j]   <- validOutput
+            ANN.valid.layer.hidden      <- kernelFunction(ANN.valid.data[i,] %*% ANN.valid.input.weights.calibrated[[j]])
+            ANN.valid.layer.hidden      <- c(.insert(ANN.valid.layer.hidden, element = 1.0)) # Insert Bias Term to Hidden Layer
+            ANN.valid.output            <- kernelFunction(ANN.valid.layer.hidden %*% ANN.valid.hidden.weights.calibrated[[j]])
+            ANN.valid.classifications[i, j]<- ANN.valid.output
             # Metric Computation     
-            validError              <- 0.5 * (validTargets[i, j] - validOutput) ^ 2
-            validDistance           <- abs(validTargets[i, j] - validOutput) # An Easily Interpretable Error Measure
-            validSEList[i, j]       <- validError
-            validDistanceList[i, j] <- validDistance # For Monitoring Error Reduction
+            ANN.valid.metrics.se[i, j]  <- 0.5 * (ANN.valid.targets[i, j] - ANN.valid.output) ^ 2 # For Monitoring Error Reduction
+            ANN.valid.metrics.distance[i, j]<- abs(ANN.valid.targets[i, j] - ANN.valid.output) # An Easily Interpretable Error Measure
         }
-        validClass              <- order(classifications[i,], decreasing = TRUE)[1]
-        if (verboseValidate == TRUE) {
-            print(paste("       Known Class:           ", validTarget))
-            print(paste("       Computed Class:        ", validClass))
+        ANN.valid.sample.class.computed <- order(ANN.valid.classifications[i,], decreasing = TRUE)[1]
+        if (ANN.valid.verbose == TRUE) {
+            print(paste("       Known Class:           ", ANN.valid.sample.target))
+            print(paste("       Computed Class:        ", ANN.valid.sample.class.computed))
         }
-        if (validTarget == validClass) {
-            validHit                <- validHit + 1
-            if (verboseValidate == TRUE) print("       classification Status:  hit! :)")
+        if (ANN.valid.sample.target == ANN.valid.sample.class.computed) {
+            ANN.valid.metrics.hit       <- ANN.valid.metrics.hit + 1
+            if (ANN.valid.verbose == TRUE) print("       classification Status:  hit! :)")
         } else {
-            validMiss               <- validMiss + 1
-            if (verboseValidate == TRUE) print("       Classification Status:  miss :(")
+            ANN.valid.metrics.miss      <- ANN.valid.metrics.miss + 1
+            if (ANN.valid.verbose == TRUE) print("       Classification Status:  miss :(")
         }
-        if (verboseValidate == TRUE) {
-            print(paste("           Valid Hits / Total: ", validHit, "/", validGrand))
-            print(paste("           Valid Hit Percent:  ", .decimals((validHit/validGrand) * 100, 2)))
+        if (ANN.valid.verbose == TRUE) {
+            print(paste("           Valid Hits / Total: ", ANN.valid.metrics.hit, "/", ANN.valid.metrics.total))
+            print(paste("           Valid Hit Percent:  ", .decimals((ANN.valid.metrics.hit/ANN.valid.metrics.total) * 100, 2)))
             print("-- Sample Done --------------------------")
         }
     }
-    for (i in 1:nrow(classifications)) {
-        predictedClasses        <- c(predictedClasses, order(classifications[i,], decreasing = TRUE)[1])
+    for (i in 1:nrow(ANN.valid.classifications)) {
+        ANN.valid.classes.predicted <- c(ANN.valid.classes.predicted, order(ANN.valid.classifications[i,], decreasing = TRUE)[1])
     }
     print("=========================================")
     print("-- Validation Complete")
     print("=========================================")
     print("-- Report")
     print("   Rounded Hits:")
-    print(paste("       Valid Hits / Total:     ", validHit, "/", validGrand))
-    print(paste("       Valid Hit Percent:      ", .decimals((validHit/validGrand) * 100, 2)))
+    print(paste("       Valid Hits / Total:     ", ANN.valid.metrics.hit, "/", ANN.valid.metrics.total))
+    print(paste("       Valid Hit Percent:      ", .decimals((ANN.valid.metrics.hit/ANN.valid.metrics.total) * 100, 2)))
     # Return Results
     list (
-        inferences      = classifications,
-        classes         = predictedClasses,
-        uniqueClasses   = uniqueClasses,
-        se              = validSEList,
-        distance        = validDistanceList,
-        hits            = validHit,
-        total           = validGrand,
-        percent         = .decimals((validHit/validGrand) * 100, 2)
+        inferences      = ANN.valid.classifications,
+        classes         = ANN.valid.classes.predicted,
+        classes.unique  = ANN.valid.classes.unique,
+        se              = ANN.valid.metrics.se,
+        distance        = ANN.valid.metrics.distance,
+        hits            = ANN.valid.metrics.hit,
+        misses          = ANN.valid.metrics.miss,
+        total           = ANN.valid.metrics.total,
+        percent         = .decimals((ANN.valid.metrics.hit/ANN.valid.metrics.total) * 100, 2)
     )
 }
 
 # 
-# Artifical Neural Network Classification Function
+# Artifical Neural Network Classification Method
 # 
 
 # PARAMS:
 # 
-# inputTestData         required - matrix of numerics                               validation data 
-# uniqueClasses         required - integer                                          number of unique classes in training data
-# calibratedWeights     required - matrix of numerics                               calibrated weights matrix from trained model
-# calibratedHidden      required - matrix of numerics                               calibrated hidden layer from trained model
-# kernel                required - string                                           kernel function from trained model
-# verboseClassify       optional - boolean                  default = FALSE         display verbose console output 
+# ANN.classify.data                         required - matrix of numerics                           validation data 
+# ANN.classify.classes.unique               required - integer                                      number of unique classes in training data
+# ANN.classify.input.weights.calibrated     required - matrix of numerics                           calibrated weights matrix from trained model
+# ANN.classify.hidden.weights.calibrated    required - matrix of numerics                           calibrated hidden layer from trained model
+# ANN.classify.kernel                       required - string                                       kernel function from trained model
+# ANN.classify.verbose                      optional - boolean                  default = FALSE     display verbose console output 
 
-ANN.classify            <- function (inputTestData, uniqueClasses, calibratedWeights, calibratedHidden, kernel, verboseClassify = TRUE) {
+ANN.classify                <- function (ANN.classify.data, ANN.classify.classes.unique, ANN.classify.input.weights.calibrated, ANN.classify.hidden.weights.calibrated, ANN.classify.kernel, ANN.classify.verbose = TRUE) {
     # Configure
-    kernelFunction          <- match.fun(kernel) 
-    inputTestLengthR        <- nrow(inputTestData)
-    classifications         <- matrix(0, nrow = nrow(inputTestData), ncol = uniqueClasses)
-    classes                 <- vector()
+    kernelFunction              <- match.fun(ANN.classify.kernel) 
+    ANN.classify.data.nrow      <- nrow(ANN.classify.data)
+    ANN.classify.classifications<- matrix(0, nrow = nrow(ANN.classify.data), ncol = ANN.classify.classes.unique)
+    ANN.classify.classes        <- vector()
     print("=========================================")
     print("-- Classifying . . .")
     print("=========================================")
-    for (i in 1:inputTestLengthR) {
-        if (verboseClassify == TRUE) {
+    for (i in 1:ANN.classify.data.nrow) {
+        if (ANN.classify.verbose == TRUE) {
             print("-- New Sample ---------------------------")
             print("   Forward-Propagating...")
             print(paste("       Test Sample", i))
         }
-        for (j in 1:uniqueClasses) {
+        for (j in 1:ANN.classify.classes.unique) {
             # Forward Propagation
-            testHiddenLayer         <- kernelFunction(inputTestData[i,] %*% calibratedWeights[[j]])
-            testHiddenLayer         <- c(.insert(testHiddenLayer, element = 1.0)) # Insert Bias Term to Hidden Layer
-            testOutput              <- kernelFunction(testHiddenLayer %*% calibratedHidden[[j]])
-            classifications[i, j]   <- testOutput
+            ANN.classify.layer.hidden           <- kernelFunction(ANN.classify.data[i,] %*% ANN.classify.input.weights.calibrated[[j]])
+            ANN.classify.layer.hidden           <- c(.insert(ANN.classify.layer.hidden, element = 1.0)) # Insert Bias Term to Hidden Layer
+            ANN.classify.output                 <- kernelFunction(ANN.classify.layer.hidden %*% ANN.classify.hidden.weights.calibrated[[j]])
+            ANN.classify.classifications[i, j]  <- ANN.classify.output
         }
         # Metric Computation & Communication      
-        if (verboseClassify == TRUE) {
-            print(paste("       Computed Class:        ", order(classifications[i,], decreasing = TRUE)[1]))
-            print(paste("       Computed Likelihood:   ", max(classifications[i,])))
+        if (ANN.classify.verbose == TRUE) {
+            print(paste("       Computed Class:        ", order(ANN.classify.classifications[i,], decreasing = TRUE)[1]))
+            print(paste("       Computed Likelihood:   ", max(ANN.classify.classifications[i,])))
             print("-- Sample Done --------------------------")
         }
     }
-    for (i in 1:nrow(classifications)) {
-        class                   <- order(classifications[i,], decreasing = TRUE)[1]
-        classes                 <- c(classes, class)
+    for (i in 1:nrow(ANN.classify.classifications)) {
+        ANN.classify.classes    <- c(ANN.classify.classes, order(ANN.classify.classifications[i,], decreasing = TRUE)[1])
     }
     print("=========================================")
     print("-- Classifications Complete")
     print("=========================================")
     # Return Results
     list (
-        inferences  = classifications,
-        classes     = classes
+        inferences  = ANN.classify.classifications,
+        classes     = ANN.classify.classes
     )
 }
 
-# 
-# Main Routine
-# 
+# # # # # # # # #
+# Sample Usage  #
+# # # # # # # # #
 
 # Get Time
 time                    <- gsub(" ", "_", gsub(":", "-", Sys.time()))
 
-# Import Data
+# Import Data - 28x28 Images
 print("Loading data . . .")
-data.raw                <- read.csv("data/train.csv")
+data.train.raw          <- read.csv("data/train.csv")
 data.test.raw           <- read.csv("data/test.csv")
 print("Done")
 
+# 
+# Feature Engineering
+# 
+
+print("Generating Features . . .")
+
+# Generate 4x4 'Mega' Pixels with Saturation
+for (i in 1:nrow(data.train.raw)) {
+    col <- vector()
+    for (j in 0:27) {
+        name        <- paste("mps", j + 1, sep = "")
+        a           <- (j * 28) + 2
+        b           <- ((j + 1) * 28) + 1
+        data.train.raw[i, paste(name)] <- sum(data.train.raw[i,a:b])
+    }
+}
+
+for (i in 1:nrow(data.test.raw)) {
+    col <- vector()
+    for (j in 0:27) {
+        name        <- paste("mps", j + 1, sep = "")
+        a           <- (j * 28) + 2
+        b           <- ((j + 1) * 28) + 1
+        data.test.raw[i, paste(name)] <- sum(data.test.raw[i,a:b])
+    }
+}
+print("Done")
+
+# 
+# Data Preparation
+# 
+
+# Get Dimensions
+data.train.rowCount     <- nrow(data.train.raw)
+data.train.colCount     <- ncol(data.train.raw)
+
 # Split Data into 90:10 Train & Validation Sets
-data.rowCount           <- nrow(data.raw)
-data.colCount           <- ncol(data.raw)
-split                   <- data.rowCount * 0.9
-data.train              <- data.raw[0:split,]
-data.valid              <- data.raw[split:data.rowCount,]
+data.split              <- data.train.rowCount * 0.9
+data.train              <- data.train.raw[0:data.split,]
+data.valid              <- data.train.raw[data.split:data.train.rowCount,]
 
 # Extract Known Classes (0 - 9); Increment by 1 for 1-Based Indexing in R (1 - 10) (because we're actually classifying digits!)
 data.train.classes      <- data.train$label + 1
 data.valid.classes      <- data.valid$label + 1
 
 # Remove Known Classes From Train & Validation Sets
-data.train              <- as.matrix(data.train)[,2:data.colCount]
-data.valid              <- as.matrix(data.valid)[,2:data.colCount]
+data.train              <- as.matrix(data.train)[,2:data.train.colCount]
+data.valid              <- as.matrix(data.valid)[,2:data.train.colCount]
 data.test               <- as.matrix(data.test.raw)
+
+# Normalize Matrices
+data.train              <- .normalizeMatrixCols(data.train)
+data.valid              <- .normalizeMatrixCols(data.valid)
+data.test               <- .normalizeMatrixCols(data.test)
+
+# 
+# Train / Validation Statistical Comparison
+# 
+
+# Print Summaries
+print("")
+print("Train Data Summary:")
+summary(data.train.classes)
+print("")
+print("Validation Data Summary:")
+summary(data.valid.classes)
+
+# Test For Significant Differences
+t.test(data.train.classes, data.valid.classes)
+var.test(data.train.classes, data.valid.classes)
+
+# 
+# ANN Model Training / Validation / Classification 
+# 
 
 # Model Training
 trainedModel            <- ANN.train (
-    inputTrainingData       = data.train,
-    trainingClasses         = data.train.classes,
-    epochs                  = 1,
-    kernel                  = "sigmoid",
-    etaW                    = 0.03,
-    etaH                    = 0.3,
-    annealing               = 0.1,
-    hiddenNodes             = 1000,
-    dataWeightsLimit        = 0.05,
-    hiddenWeightsLimit      = 0.05,
-    classification          = TRUE,
-    verboseTrain            = TRUE
+    ANN.train.data                          = data.train,
+    ANN.train.classes                       = data.train.classes,
+    ANN.train.epochs                        = 1,
+    ANN.train.kernel                        = "sigmoid",
+    ANN.train.etaW                          = 0.02,
+    ANN.train.etaH                          = 0.2,
+    ANN.train.hidden.nodes                  = 2500,
+    ANN.train.weights.limit                 = 0.05,
+    ANN.train.hidden.limit                  = 0.05,
+    ANN.train.annealing                     = TRUE,
+    ANN.train.classification                = TRUE,
+    ANN.train.verbose                       = FALSE
 )
 
 # Model Validation
 validatedModel          <- ANN.validate (
-    inputValidData          = data.valid, 
-    validClasses            = data.valid.classes,
-    uniqueClasses           = trainedModel$uniqueClasses,
-    calibratedWeights       = trainedModel$trainedWeights, 
-    calibratedHidden        = trainedModel$trainedHidden,
-    kernel                  = trainedModel$kernel,
-    verboseValidate         = FALSE
+    ANN.valid.data                          = data.valid, 
+    ANN.valid.classes                       = data.valid.classes,
+    ANN.valid.classes.unique                = trainedModel$classes.unique,
+    ANN.valid.input.weights.calibrated      = trainedModel$input.weights, 
+    ANN.valid.hidden.weights.calibrated     = trainedModel$hidden.weights,
+    ANN.valid.kernel                        = trainedModel$kernel,
+    ANN.valid.verbose                       = FALSE
 )
 
 # Generate Inferences
 classifications         <- ANN.classify (
-    inputTestData           = data.test,
-    uniqueClasses           = trainedModel$uniqueClasses,
-    calibratedWeights       = trainedModel$trainedWeights,
-    calibratedHidden        = trainedModel$trainedHidden,
-    kernel                  = trainedModel$kernel,
-    verboseClassify         = FALSE
+    ANN.classify.data                       = data.test,
+    ANN.classify.classes.unique             = trainedModel$classes.unique,
+    ANN.classify.input.weights.calibrated   = trainedModel$input.weights,
+    ANN.classify.hidden.weights.calibrated  = trainedModel$hidden.weights,
+    ANN.classify.kernel                     = trainedModel$kernel,
+    ANN.classify.verbose                    = FALSE
 )
 
 # 
