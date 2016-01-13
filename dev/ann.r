@@ -133,10 +133,12 @@
 #
 # ANN.train.data            required - matrix of numerics                               data to train on
 # ANN.train.classes         required - vector of integers                               known sample classes (or values in regression)
-# ANN.train.epochs          optional - integer                  default = 20            number of ANN.train.epochs to train
+# ANN.train.epochs          optional - integer                  default = 1             number of ANN.train.epochs to train
 # ANN.train.kernel          optional - string                   default = "sigmoid"     activation function (sigmoid, signum, fSigmoid, relu)
-# ANN.train.etaW            optional - float                    default = 0.1           weights learning parameter
+# ANN.train.etaW            optional - float                    default = 0.1           weights weights learning parameter
 # ANN.train.etaH            optional - float                    default = 0.01          hidden layer learning parameter
+# ANN.train.alphaW          optional - float                    default = 0             weights layer momentum parameter
+# ANN.train.alphaH          optional - float                    default = 0             hidden layer momentum parameter
 # ANN.train.annealing       optional - boolean                  default = FALSE         (experimental) reduces eta value(s) using the following formula: eta = eta - (eta * (1 - successfulEpochClassifications / totalEpochClassifications))
 # ANN.train.hidden.nodes    optional - integer                  default = 1             nodes in hidden layer
 # ANN.train.dropout         optional - float                    default = 0.5           (not implemented) proportion of neurons to drop out (1.0 = no dropout)
@@ -145,7 +147,7 @@
 # ANN.train.classification  optional - boolean                  default = TRUE          train classification (TRUE) or regression model (FALSE)
 # ANN.train.verbose         optional - boolean                  default = FALSE         display verbose console output
 
-ANN.train                   <- function (ANN.train.data, ANN.train.classes, ANN.train.epochs = 1, ANN.train.kernel = "sigmoid", ANN.train.etaW = 0.1, ANN.train.etaH = 0.01, ANN.train.hidden.nodes = 20, ANN.train.dropout = 0.5, ANN.train.weights.limit = 0.05, ANN.train.hidden.limit = 0.5, ANN.train.annealing = FALSE, ANN.train.classification = TRUE, ANN.train.verbose = FALSE) {
+ANN.train                   <- function (ANN.train.data, ANN.train.classes, ANN.train.epochs = 1, ANN.train.kernel = "sigmoid", ANN.train.etaW = 0.1, ANN.train.etaH = 0.01, ANN.train.alphaW = 0, ANN.train.alphaH = 0, ANN.train.annealing = FALSE, ANN.train.hidden.nodes = 20, ANN.train.dropout = 0.5, ANN.train.weights.limit = 0.05, ANN.train.hidden.limit = 0.5, ANN.train.classification = TRUE, ANN.train.verbose = FALSE) {
     # Configuration 
     ANN.train.classes.unique    <- length(unique(ANN.train.classes))
     ANN.train.data.ncol         <- ncol(ANN.train.data)
@@ -508,10 +510,12 @@ trainedModel            <- ANN.train (
     ANN.train.kernel                        = "sigmoid",
     ANN.train.etaW                          = 0.02,
     ANN.train.etaH                          = 0.2,
+    ANN.train.alphaW                        = 0,
+    ANN.train.alphaH                        = 0,
+    ANN.train.annealing                     = TRUE,
     ANN.train.hidden.nodes                  = 2500,
     ANN.train.weights.limit                 = 0.05,
     ANN.train.hidden.limit                  = 0.05,
-    ANN.train.annealing                     = TRUE,
     ANN.train.classification                = TRUE,
     ANN.train.verbose                       = FALSE
 )
